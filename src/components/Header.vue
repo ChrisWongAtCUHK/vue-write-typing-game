@@ -4,6 +4,9 @@ defineProps<{
   wave: number
   combo: number
   multiplier: number
+  wpm: number
+  accuracy: number
+  score: number
 }>()
 </script>
 
@@ -22,6 +25,20 @@ defineProps<{
     </div>
     <div class="logo">
       <div v-for="(letter, i) in LOGO.split('')" :key="i">{{ letter }}</div>
+    </div>
+    <div class="right">
+      <div class="mini-stat">
+        <span>WPM</span>
+        <strong>{{ wpm }}</strong>
+      </div>
+      <div class="mini-stat">
+        <span>ACC</span>
+        <strong>{{ accuracy }}%</strong>
+      </div>
+      <div class="score">
+        <span>SCORE</span>
+        <strong>{{ score }}</strong>
+      </div>
     </div>
   </div>
 </template>
@@ -124,5 +141,61 @@ span.mult {
   letter-spacing: 1px;
   text-shadow: 0 0 10px rgba(251, 191, 36, 0.7);
   margin-left: 2px;
+}
+
+div.right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+div.mini-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  strong {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+}
+
+div.score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-height: 32px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  strong {
+    color: var(--accent);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-align: right;
+    text-shadow: 0 0 12px var(--accent-glow);
+  }
 }
 </style>
