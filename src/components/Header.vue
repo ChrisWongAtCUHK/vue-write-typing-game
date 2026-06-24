@@ -1,9 +1,25 @@
 <script setup lang="ts">
 const LOGO = 'writé'
+defineProps<{
+  wave: number
+  combo: number
+  multiplier: number
+}>()
 </script>
 
 <template>
   <div class="header">
+    <div class="left">
+      <div class="chip">
+        <span>WAVE</span>
+        <strong>{{ wave }}</strong>
+      </div>
+      <div v-if="combo > 0" class="chip highlight">
+        <span>COMBO</span>
+        <strong>{{ combo }}</strong>
+        <span v-if="multiplier > 1" class="mult">×{{ multiplier }}</span>
+      </div>
+    </div>
     <div class="logo">
       <div v-for="(letter, i) in LOGO.split('')" :key="i">{{ letter }}</div>
     </div>
@@ -61,5 +77,52 @@ div.header {
       }
     }
   }
+}
+
+div.left {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+}
+
+div.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  strong {
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  &.highlight {
+    border-color: var(--warn);
+    strong {
+      color: var(--warn);
+      text-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+    }
+  }
+}
+
+span.mult {
+  color: var(--warn);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.7);
+  margin-left: 2px;
 }
 </style>

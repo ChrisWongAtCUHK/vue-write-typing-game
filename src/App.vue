@@ -3,7 +3,7 @@ import Header from './components/Header.vue'
 </script>
 
 <template>
-  <Header />
+  <Header :wave="1" :combo="1" :multiplier="2" />
 </template>
 
 <style scoped></style>
