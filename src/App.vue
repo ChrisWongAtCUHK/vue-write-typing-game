@@ -2,8 +2,9 @@
 import { ref } from 'vue'
 import type ActiveWord from '@/types/activeWord.ts'
 import type Particle from '@/types/particle.ts'
-import Header from './components/Header.vue'
 import GameScreen from './components/GameScreen.vue'
+import type FloatingText from './types/floatingText.ts'
+import type WaveBanner from './types/waveBanner.ts'
 
 // TODO: test data
 const activeWords = ref<Array<ActiveWord>>([
@@ -106,22 +107,18 @@ const particles = ref<Array<Particle>>([
   },
 ])
 
-const typingWord = ref('')
+const typingWord = ref<string>('')
 const matchedWordId = ref<number | null>(null)
-const errorPulse = ref(0)
-const healthFlash = ref(0)
-const bombPulse = ref(0)
+const errorPulse = ref<number>(0)
+const healthFlash = ref<number>(0)
+const bombPulse = ref<number>(0)
+
+const floatingTexts = ref<Array<FloatingText>>([])
+const waveBanner = ref<WaveBanner | null>(null)
+const slowActive = ref<boolean>(false)
 </script>
 
 <template>
-  <Header
-    :wave="1"
-    :combo="1"
-    :multiplier="2"
-    :wpm="10"
-    :accuracy="80"
-    :score="200"
-  />
   <GameScreen
     :active-words="activeWords"
     :typing-word="typingWord"
@@ -130,6 +127,9 @@ const bombPulse = ref(0)
     :health-flash="healthFlash"
     :bomb-pulse="bombPulse"
     :particles="particles"
+    :floating-texts="floatingTexts"
+    :wave-banner="waveBanner"
+    :slow-active="slowActive"
   />
 </template>
 

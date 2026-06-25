@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import type ActiveWord from '@/types/activeWord.ts'
 import type Particle from '@/types/particle.ts'
 import type FloatingText from '@/types/floatingText.ts'
+import type WaveBanner from '@/types/waveBanner.ts'
 import Word from './Word.vue'
 
 const props = defineProps<{
@@ -14,6 +15,8 @@ const props = defineProps<{
   bombPulse: number
   particles: Array<Particle>
   floatingTexts: Array<FloatingText>
+  waveBanner: WaveBanner | null
+  slowActive: boolean
 }>()
 
 const matched =
@@ -123,6 +126,19 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
       >
         {{ f.text }}
       </div>
+      <div v-if="waveBanner" class="wave-banner" :key="waveBanner.id">
+        <div class="label">incoming</div>
+        <div class="text">{{ waveBanner.text }}</div>
+      </div>
+      <Header
+        :wave="1"
+        :combo="1"
+        :multiplier="2"
+        :wpm="10"
+        :accuracy="80"
+        :score="200"
+      />
+      <div style="flex: 1"></div>
     </div>
   </div>
 </template>
@@ -157,6 +173,37 @@ div.floating-text {
   text-shadow: 0 0 12px currentColor;
 }
 
+div.wave-banner {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 6;
+  animation: bannerIn 1.8s ease-in-out forwards;
+
+  .label {
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .text {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 72px;
+    font-weight: 800;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    text-shadow:
+      0 0 30px var(--accent-glow),
+      0 0 60px var(--accent-glow);
+  }
+}
+
 @keyframes particleFly {
   0% {
     opacity: 1;
@@ -181,6 +228,25 @@ div.floating-text {
   100% {
     opacity: 0;
     transform: translate(-50%, -60px) scale(0.9);
+  }
+}
+
+@keyframes bannerIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.2);
   }
 }
 </style>
