@@ -6,6 +6,10 @@ import GameScreen from './components/GameScreen.vue'
 import type FloatingText from './types/floatingText.ts'
 import type WaveBanner from './types/waveBanner.ts'
 
+const MAX_HEALTH = 3
+
+const level = ref<string>('')
+const currentState = ref<string>('level')
 // TODO: test data
 const activeWords = ref<Array<ActiveWord>>([
   { id: 1, text: 'soup', kind: 'bombclear', x: 50.4193662278893, y: 24 },
@@ -115,7 +119,22 @@ const bombPulse = ref<number>(0)
 
 const floatingTexts = ref<Array<FloatingText>>([])
 const waveBanner = ref<WaveBanner | null>(null)
+const health = ref<number>(MAX_HEALTH)
 const slowActive = ref<boolean>(false)
+
+const resetRunState = () => {}
+
+const startGame = (chosenLevel: string) => {
+  resetRunState()
+  level.value = chosenLevel
+  currentState.value = 'game'
+}
+
+const backToLevel = () => {
+  level.value = ''
+  resetRunState()
+  currentState.value = 'level'
+}
 </script>
 
 <template>
@@ -129,6 +148,8 @@ const slowActive = ref<boolean>(false)
     :particles="particles"
     :floating-texts="floatingTexts"
     :wave-banner="waveBanner"
+    :health="health"
+    :on-restart="backToLevel"
     :slow-active="slowActive"
   />
 </template>

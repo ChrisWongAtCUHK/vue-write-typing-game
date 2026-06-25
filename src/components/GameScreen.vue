@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import Header from './Header.vue'
+import Bottom from './Bottom.vue'
 import type ActiveWord from '@/types/activeWord.ts'
 import type Particle from '@/types/particle.ts'
 import type FloatingText from '@/types/floatingText.ts'
@@ -16,6 +18,8 @@ const props = defineProps<{
   particles: Array<Particle>
   floatingTexts: Array<FloatingText>
   waveBanner: WaveBanner | null
+  health: number
+  onRestart: () => void
   slowActive: boolean
 }>()
 
@@ -139,6 +143,13 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
         :score="200"
       />
       <div style="flex: 1"></div>
+      <Bottom
+        :currentWord="matched ? matched.text : ``""
+        :typingWord="typingWord"
+        :health="health"
+        :hurting="hurting"
+        :on-restart="onRestart"
+      />
     </div>
   </div>
 </template>
