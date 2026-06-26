@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import type ActiveWord from '@/types/activeWord.ts'
 import type Particle from '@/types/particle.ts'
+import LevelScreen from './components/LevelScreen.vue'
 import GameScreen from './components/GameScreen.vue'
 import type FloatingText from './types/floatingText.ts'
 import type WaveBanner from './types/waveBanner.ts'
@@ -140,7 +141,9 @@ const backToLevel = () => {
 </script>
 
 <template>
+  <LevelScreen v-if="currentState === 'level'" />
   <GameScreen
+    v-else
     :active-words="activeWords"
     :typing-word="typingWord"
     :matched-word-id="matchedWordId"

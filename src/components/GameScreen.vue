@@ -7,6 +7,7 @@ import type Particle from '@/types/particle.ts'
 import type FloatingText from '@/types/floatingText.ts'
 import type WaveBanner from '@/types/waveBanner.ts'
 import Word from './Word.vue'
+import Settings from './Settings.vue'
 
 const props = defineProps<{
   activeWords: Array<ActiveWord>
@@ -173,6 +174,7 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
       </div>
       <div :class="shaking ? `error-flash active` : `error-flash`"></div>
       <div :class="hurting ? `hurt-flash active` : `hurt-flash`"></div>
+      <Settings v-if="settingsOpen" :on-close="() => settingsOpen = false"/>
   </div>
 </template>
 

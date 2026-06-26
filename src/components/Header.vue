@@ -1,41 +1,43 @@
 <script setup lang="ts">
 const LOGO = 'writé'
 defineProps<{
-  wave: number
-  combo: number
-  multiplier: number
-  wpm: number
-  accuracy: number
-  score: number
+  wave?: number
+  combo?: number
+  multiplier?: number
+  wpm?: number
+  accuracy?: number
+  score?: number
 }>()
 </script>
 
 <template>
   <div class="header">
     <div class="left">
-      <div class="chip">
+      <div v-if="wave" class="chip">
         <span>WAVE</span>
         <strong>{{ wave }}</strong>
       </div>
-      <div v-if="combo > 0" class="chip highlight">
+      <div v-if="combo && combo > 0" class="chip highlight">
         <span>COMBO</span>
         <strong>{{ combo }}</strong>
-        <span v-if="multiplier > 1" class="mult">×{{ multiplier }}</span>
+        <span v-if="multiplier && multiplier > 1" class="mult"
+          >×{{ multiplier }}</span
+        >
       </div>
     </div>
     <div class="logo">
       <div v-for="(letter, i) in LOGO.split('')" :key="i">{{ letter }}</div>
     </div>
     <div class="right">
-      <div class="mini-stat">
+      <div v-if="wpm" class="mini-stat">
         <span>WPM</span>
         <strong>{{ wpm }}</strong>
       </div>
-      <div class="mini-stat">
+      <div v-if="accuracy" class="mini-stat">
         <span>ACC</span>
         <strong>{{ accuracy }}%</strong>
       </div>
-      <div class="score">
+      <div v-if="score" class="score">
         <span>SCORE</span>
         <strong>{{ score }}</strong>
       </div>
