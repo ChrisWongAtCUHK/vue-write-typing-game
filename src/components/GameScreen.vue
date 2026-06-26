@@ -166,6 +166,13 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
         <div class="pause-title">PAUSED</div>
         <div class="pause-hint">press <kbd>Tab</kbd> or <kbd>Esc</kbd> to resume</div>
       </div>
+      <div v-if="bombing" class="bomb-overlay">
+        <div class="shockwave"></div>
+        <div class="shockwave" style="animation-delay: 0.08s;"></div>
+        <div class="bomb-flash"></div>
+      </div>
+      <div :class="shaking ? `error-flash active` : `error-flash`"></div>
+      <div :class="hurting ? `hurt-flash active` : `hurt-flash`"></div>
   </div>
 </template>
 
@@ -326,6 +333,36 @@ div.pause-hint {
   }
 }
 
+div.bomb-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+div.shockwave {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 12px solid #fbbf24;
+  box-shadow:
+    0 0 60px rgba(251, 191, 36, 0.85),
+    inset 0 0 40px rgba(251, 191, 36, 0.6);
+  animation: shockwaveExpand 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+div.bomb-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255, 220, 130, 0.55) 0%, rgba(251, 146, 60, 0.3) 30%, transparent 65%);
+  animation: bombFlashAnim 0.6s ease-out forwards;
+}
+
 @keyframes particleFly {
   0% {
     opacity: 1;
@@ -397,5 +434,16 @@ div.pause-hint {
   15%  { opacity: 0.6; }
   85%  { opacity: 0.5; }
   100% { transform: translate(var(--drift), 60px); opacity: 0; }
+}
+
+@keyframes shockwaveExpand {
+  0%   { width: 50px; height: 50px; opacity: 1; border-width: 12px; }
+  100% { width: 180vmax; height: 180vmax; opacity: 0; border-width: 1px; }
+}
+
+@keyframes bombFlashAnim {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 </style>
