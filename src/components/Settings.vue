@@ -37,6 +37,8 @@ const changeVolume = (e: any) => {
   volume.value = v
   setVolume(v)
 }
+
+const testSound = () => play('complete')
 </script>
 <template>
   <div @click="() => onClose()" class="backdrop">
@@ -66,6 +68,12 @@ const changeVolume = (e: any) => {
           />
           <div class="slider-value">{{ Math.round(volume * 100) }}%</div>
         </div>
+      </div>
+      <div class="row">
+        <div class="label">TEST</div>
+        <button @click="testSound" :disabled="!enabled" class="test-button">
+          ▶ PLAY
+        </button>
       </div>
     </div>
   </div>
@@ -168,6 +176,30 @@ div.slider-value {
   color: var(--text);
   min-width: 42px;
   text-align: right;
+}
+
+button.test-button {
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 }
 
 @keyframes fadeIn {
