@@ -121,6 +121,8 @@ const floatingTexts = ref<Array<FloatingText>>([])
 const waveBanner = ref<WaveBanner | null>(null)
 const health = ref<number>(MAX_HEALTH)
 const slowActive = ref<boolean>(false)
+const freezeActive = ref<boolean>(false)
+const paused = ref<boolean>(false)
 
 const resetRunState = () => {}
 
@@ -151,6 +153,8 @@ const backToLevel = () => {
     :health="health"
     :on-restart="backToLevel"
     :slow-active="slowActive"
+    :freeze-active="freezeActive"
+    :paused="paused"
   />
 </template>
 

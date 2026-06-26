@@ -21,6 +21,8 @@ const props = defineProps<{
   health: number
   onRestart: () => void
   slowActive: boolean
+  freezeActive: boolean
+  paused: boolean
 }>()
 
 const matched =
@@ -151,6 +153,19 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
         :hurting="hurting"
         :on-restart="onRestart"
       />
+      <div v-if="slowActive" class="slow-overlay">
+        <div class="effect-label" :style="`color: #93c5fd; background: rgba(8, 18, 40, 0.6); border: 1px solid rgba(147, 197, 253, 0.6); text-shadow: 0 0 18px rgba(96, 165, 250, 0.8); box-shadow: 0 0 30px rgba(96, 165, 250, 0.4);`">SLOW MO</div>
+      </div>
+      <div v-if="freezeActive" class="freeze-overlay">
+        <div v-for="(_, i) in Array.from({ length: 10 })" :key="i" class="snow-flake" :style="`left: ${5 + Math.random() * 90}%; top: ${Math.random() * 100}%; --delay: ${Math.random() * 2}s; --size: ${3 + Math.random() * 4}px; --drift: ${(Math.random() - 0.5) * 30}px`"></div>
+        <div class="frost-corner" :style="`background: radial-gradient(circle at 0% 0%, rgba(207, 250, 254, 0.25), rgba(103, 232, 249, 0.05) 50%, transparent 75%); top: 0; left: 0;`"></div>
+        <div class="frost-corner" :style="`background: radial-gradient(circle at 100% 100%, rgba(207, 250, 254, 0.25), rgba(103, 232, 249, 0.05) 50%, transparent 75%); bottom: 0; right: 0;`"></div>
+        <div class="effect-label" :style="`color: #cffafe; background: rgba(8, 30, 36, 0.6); border: 1px solid rgba(207, 250, 254, 0.7); text-shadow: 0 0 18px rgba(103, 232, 249, 0.9); box-shadow: 0 0 30px rgba(103, 232, 249, 0.5);`">FROZEN</div>
+      </div>
+      <div v-if="paused" class="pause-overlay">
+        <div class="pause-title">PAUSED</div>
+        <div class="pause-hint">press <kbd>Tab</kbd> or <kbd>Esc</kbd> to resume</div>
+      </div>
   </div>
 </template>
 
@@ -215,6 +230,102 @@ div.wave-banner {
   }
 }
 
+div.slow-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(96, 165, 250, 0.18) 100%);
+  animation: overlayIn 0.2s ease-out, slowPulse 1.6s ease-in-out infinite;
+  border: 2px solid rgba(96, 165, 250, 0.4);
+}
+
+div.effect-label {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 12px;
+  text-transform: uppercase;
+  padding: 12px 28px;
+  border-radius: 12px;
+  animation: labelPulse 1.2s ease-in-out infinite;
+}
+
+div.freeze-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(103, 232, 249, 0.1) 100%);
+  animation: overlayIn 0.3s ease-out, freezeBreathe 2.4s ease-in-out infinite;
+  border: 1px solid rgba(103, 232, 249, 0.25);
+}
+
+div.snow-flake {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  background: rgba(207, 250, 254, 0.7);
+  border-radius: 50%;
+  filter: blur(1px);
+  animation: fall 4s linear infinite;
+  animation-delay: var(--delay);
+  box-shadow: 0 0 4px rgba(207, 250, 254, 0.6);
+}
+
+div.frost-corner {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+div.pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: rgba(6, 7, 10, 0.78);
+  backdrop-filter: blur(8px);
+  animation: overlayIn 0.2s ease-out;
+}
+
+div.pause-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: 12px;
+  color: var(--accent);
+  text-shadow: 0 0 30px var(--accent-glow);
+}
+
+div.pause-hint {
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+
+  kbd {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin: 0 4px;
+    color: var(--accent);
+    font-family: inherit;
+  }
+}
+
 @keyframes particleFly {
   0% {
     opacity: 1;
@@ -259,5 +370,32 @@ div.wave-banner {
     opacity: 0;
     transform: translate(-50%, -50%) scale(1.2);
   }
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slowPulse {
+  0%, 100% { box-shadow: inset 0 0 80px rgba(96, 165, 250, 0.45); }
+  50%      { box-shadow: inset 0 0 140px rgba(96, 165, 250, 0.7); }
+}
+
+@keyframes labelPulse {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.9; }
+  50%      { transform: translateX(-50%) scale(1.06); opacity: 1; }
+}
+
+@keyframes freezeBreathe {
+  0%, 100% { box-shadow: inset 0 0 100px rgba(103, 232, 249, 0.18); }
+  50%      { box-shadow: inset 0 0 140px rgba(103, 232, 249, 0.28); }
+}
+
+@keyframes fall {
+  0%   { transform: translate(0, -10px); opacity: 0; }
+  15%  { opacity: 0.6; }
+  85%  { opacity: 0.5; }
+  100% { transform: translate(var(--drift), 60px); opacity: 0; }
 }
 </style>
