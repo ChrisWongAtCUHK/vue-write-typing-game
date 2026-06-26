@@ -134,7 +134,8 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
         <div class="label">incoming</div>
         <div class="text">{{ waveBanner.text }}</div>
       </div>
-      <Header
+    </div>
+    <Header
         :wave="1"
         :combo="1"
         :multiplier="2"
@@ -150,7 +151,6 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
         :hurting="hurting"
         :on-restart="onRestart"
       />
-    </div>
   </div>
 </template>
 
