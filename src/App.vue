@@ -141,7 +141,11 @@ const backToLevel = () => {
 </script>
 
 <template>
-  <LevelScreen v-if="currentState === 'level'" />
+  <LevelScreen
+    v-if="currentState === 'level'"
+    :level="level"
+    :set-level="startGame"
+  />
   <GameScreen
     v-else
     :active-words="activeWords"
