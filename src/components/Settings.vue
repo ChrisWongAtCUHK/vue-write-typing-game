@@ -75,6 +75,7 @@ const testSound = () => play('complete')
           ▶ PLAY
         </button>
       </div>
+      <button @click="() => onClose()" class="close">CLOSE</button>
     </div>
   </div>
 </template>
@@ -202,6 +203,30 @@ button.test-button {
   }
 }
 
+button.close {
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: linear-gradient(
+    180deg,
+    rgba(94, 234, 212, 0.18),
+    rgba(94, 234, 212, 0.05)
+  );
+  color: var(--accent);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 0 14px var(--accent-glow);
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
 @keyframes fadeIn {
   from {
     opacity: 0;
