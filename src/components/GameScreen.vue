@@ -19,6 +19,12 @@ const props = defineProps<{
   particles: Array<Particle>
   floatingTexts: Array<FloatingText>
   waveBanner: WaveBanner | null
+  wave: number
+  combo: number
+  multiplier: number
+  wpm: number
+  accuracy: number
+  score: number
   health: number
   onRestart: () => void
   slowActive: boolean
@@ -139,12 +145,12 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
       </div>
     </div>
     <Header
-        :wave="1"
-        :combo="1"
-        :multiplier="2"
-        :wpm="10"
-        :accuracy="80"
-        :score="200"
+        :wave="wave"
+        :combo="combo"
+        :multiplier="multiplier"
+        :wpm="wpm"
+        :accuracy="accuracy"
+        :score="score"
       />
       <div style="flex: 1"></div>
       <Bottom

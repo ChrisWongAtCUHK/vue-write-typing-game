@@ -1,131 +1,202 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onWatcherCleanup, onMounted } from 'vue'
+import { easyWords, mediumWords, hardWords, expertWords } from './config/words'
 import type ActiveWord from '@/types/activeWord.ts'
 import type Particle from '@/types/particle.ts'
 import LevelScreen from './components/LevelScreen.vue'
+import GameOver from './components/GameOver.vue'
 import GameScreen from './components/GameScreen.vue'
 import type FloatingText from './types/floatingText.ts'
 import type WaveBanner from './types/waveBanner.ts'
+import type Stats from './types/stats.ts'
+import { getLanguage, isLetter, normalizeLetter } from './utils/language.ts'
+import { play as playSound, preload as preloadSounds } from './utils/audio'
 
+const POOLS = {
+  en: {
+    easy: easyWords,
+    medium: mediumWords,
+    hard: hardWords,
+    expert: expertWords,
+  },
+  tr: {
+    easy: easyWords,
+    medium: mediumWords,
+    hard: hardWords,
+    expert: expertWords,
+  },
+} as const
+
+type PoolName = keyof typeof POOLS
+
+const LEVEL_PARAMS = {
+  easy: {
+    fallSpeed: 1.4,
+    spawnInterval: 2400,
+    initialSpawn: 2,
+    maxActive: 4,
+    damage: 1,
+  },
+  medium: {
+    fallSpeed: 1.8,
+    spawnInterval: 2000,
+    initialSpawn: 2,
+    maxActive: 5,
+    damage: 1,
+  },
+  hard: {
+    fallSpeed: 2.0,
+    spawnInterval: 1800,
+    initialSpawn: 2,
+    maxActive: 5,
+    damage: 1,
+  },
+  expert: {
+    fallSpeed: 2.4,
+    spawnInterval: 1600,
+    initialSpawn: 3,
+    maxActive: 6,
+    damage: 1,
+  },
+} as const
+
+type LevelName = keyof typeof LEVEL_PARAMS
+
+const getLevelConfig = (level: string, lang: string) => {
+  const levelName = level as LevelName
+  const params = LEVEL_PARAMS[levelName]
+  const poolName = lang as PoolName
+  const pool = POOLS[poolName]?.[levelName] || POOLS.en[levelName]
+  return { ...params, pool }
+}
+
+const TICK_MS = 16
 const MAX_HEALTH = 3
+const SPAWN_Y = -12
+const BOTTOM_LIMIT = 84
+const LEFT_MIN = 4
+const LEFT_MAX = 55
+
+const WAVE_SIZE = 10
+const SPEEDUP_INTERVAL_MS = 20000
+const SPEEDUP_FACTOR = 1.04
+const SPAWN_SPEEDUP_FACTOR = 0.96
+const SPEED_CAP = 1.8
+const SPAWN_FLOOR = 0.6
+
+const POWERUP_CHANCE = 0.18
+const DANGER_CHANCE = 0.08
+const POWERUP_KINDS = ['slow', 'freeze', 'heart', 'bombclear']
+
+const SLOW_DURATION_MS = 5000
+const SLOW_FACTOR = 0.4
+const FREEZE_DURATION_MS = 2000
+
+const LONG_WORD_THRESHOLD = 8
+const LONG_WORD_BONUS = 5
+const PERFECT_BONUS = 5
+const DANGER_MULTIPLIER = 2
+
+let floatingId = 0
+const nextFloatingId = () => ++floatingId
 
 const level = ref<string>('')
 const currentState = ref<string>('level')
-// TODO: test data
-const activeWords = ref<Array<ActiveWord>>([
-  { id: 1, text: 'soup', kind: 'bombclear', x: 50.4193662278893, y: 24 },
-  { id: 2, text: 'bug', kind: 'normal', x: 14.951919388628298, y: 52 },
-])
+const activeWords = ref<Array<ActiveWord>>([])
 
-const particles = ref<Array<Particle>>([
-  {
-    id: 0,
-    x: 48.39617401951048,
-    y: 46.23999999999982,
-    color: '#f472b6',
-    pieces: [
-      {
-        id: '0-0',
-        dx: 51.16372846458143,
-        dy: 20.269376458773667,
-        rot: 43.80464641287251,
-      },
-      {
-        id: '0-1',
-        dx: 39.406676731416,
-        dy: 29.96098193646582,
-        rot: 329.32194829621983,
-      },
-      {
-        id: '0-2',
-        dx: 47.40436340223764,
-        dy: 86.50270708277088,
-        rot: 242.64219337601355,
-      },
-      {
-        id: '0-3',
-        dx: -10.486661699197423,
-        dy: 64.044601737537,
-        rot: 306.92513325830976,
-      },
-      {
-        id: '0-4',
-        dx: -37.406430164830404,
-        dy: 74.72796233455519,
-        rot: 188.64976108845897,
-      },
-      {
-        id: '0-5',
-        dx: -71.82074570948265,
-        dy: 57.24955791429314,
-        rot: 280.8202697995783,
-      },
-      {
-        id: '0-6',
-        dx: -50.49921735047635,
-        dy: 14.306997536151417,
-        rot: 14.027989198807834,
-      },
-      {
-        id: '0-7',
-        dx: -92.30880877361531,
-        dy: -36.99615257673278,
-        rot: 70.88619359018081,
-      },
-      {
-        id: '0-8',
-        dx: -54.05685963780775,
-        dy: -59.34606515316711,
-        rot: 139.88651328323098,
-      },
-      {
-        id: '0-9',
-        dx: -21.842218335830445,
-        dy: -45.858953418580356,
-        rot: 286.56767467585667,
-      },
-      {
-        id: '0-10',
-        dx: 10.468422877490408,
-        dy: -84.25229193186988,
-        rot: 213.73298085761343,
-      },
-      {
-        id: '0-11',
-        dx: 25.43262034833654,
-        dy: -45.28308290541538,
-        rot: 119.66544248836837,
-      },
-      {
-        id: '0-12',
-        dx: 51.85252741269423,
-        dy: -58.878920671241254,
-        rot: 329.0893142100557,
-      },
-      {
-        id: '0-13',
-        dx: 41.01212323953566,
-        dy: -14.252466405625885,
-        rot: 179.88063458814773,
-      },
-    ],
-  },
-])
+const particles = ref<Array<Particle>>([])
 
 const typingWord = ref<string>('')
 const matchedWordId = ref<number | null>(null)
+const score = ref<number>(0)
+const health = ref<number>(MAX_HEALTH)
+const combo = ref<number>(0)
+const bestCombo = ref<number>(0)
+const wave = ref<number>(1)
+const wordsCompletedThisWave = ref<number>(0)
 const errorPulse = ref<number>(0)
 const healthFlash = ref<number>(0)
 const bombPulse = ref<number>(0)
 
 const floatingTexts = ref<Array<FloatingText>>([])
 const waveBanner = ref<WaveBanner | null>(null)
-const health = ref<number>(MAX_HEALTH)
 const slowActive = ref<boolean>(false)
 const freezeActive = ref<boolean>(false)
 const paused = ref<boolean>(false)
+let pausedRef = paused.value
+const lang = ref<string>(getLanguage())
+let langRef = lang.value
+const hadErrorOnCurrent = ref<boolean>(false)
+const stats = ref<Stats>({
+  correctChars: 0,
+  totalChars: 0,
+  wordsCompleted: 0,
+  elapsedMs: 0,
+})
+const newRecord = ref<boolean>(false)
 
-const resetRunState = () => {}
+let startTimeRef = 0
+let pausedAtRef = 0
+let pausedTotalRef = 0
+let correctCharsRef = 0
+let totalCharsRef = 0
+let wordsCompletedRef = 0
+let particleIdRef = 0
+let speedFactorRef = 1
+let spawnFactorRef = 1
+let slowUntilRef = 0
+let freezeUntilRef = 0
+let wavePausedRef = false
+
+let errorTimeoutRef = null
+let idRef = 0
+let activeWordsRef = activeWords.value
+let matchedIdRef = matchedWordId.value
+let typingRef = typingWord.value
+let stateRef = currentState.value
+let levelRef = level.value
+let hadErrorRef = hadErrorOnCurrent.value
+let comboRef = combo.value
+
+const resetRunState = () => {
+  activeWords.value = []
+  typingWord.value = ''
+  matchedWordId.value = null
+  score.value = 0
+  health.value = MAX_HEALTH
+  combo.value = 0
+  bestCombo.value = 0
+  wave.value = 1
+  wordsCompletedThisWave.value = 0
+  waveBanner.value = null
+  floatingTexts.value = []
+  particles.value = []
+  healthFlash.value = 0
+  slowActive.value = false
+  freezeActive.value = false
+  bombPulse.value = 0
+  paused.value = false
+  hadErrorOnCurrent.value = false
+  stats.value = {
+    correctChars: 0,
+    totalChars: 0,
+    wordsCompleted: 0,
+    elapsedMs: 0,
+  }
+  newRecord.value = false
+
+  startTimeRef = performance.now()
+  pausedAtRef = 0
+  pausedTotalRef = 0
+  correctCharsRef = 0
+  totalCharsRef = 0
+  wordsCompletedRef = 0
+  speedFactorRef = 1
+  spawnFactorRef = 1
+  slowUntilRef = 0
+  freezeUntilRef = 0
+  wavePausedRef = false
+}
 
 const startGame = (chosenLevel: string) => {
   resetRunState()
@@ -138,6 +209,492 @@ const backToLevel = () => {
   resetRunState()
   currentState.value = 'level'
 }
+
+const addFloating = (text: string, x: number, y: number, variant: string) => {
+  const id = nextFloatingId()
+  floatingTexts.value = [...floatingTexts.value, { id, text, x, y, variant }]
+  setTimeout(() => {
+    floatingTexts.value = floatingTexts.value.filter((f) => f.id !== id)
+  }, 900)
+}
+
+const burstParticles = (x: number, y: number, color: string) => {
+  const id = particleIdRef++
+  const pieces = Array.from({ length: 14 }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / 14 + Math.random() * 0.4
+    const dist = 40 + Math.random() * 60
+    return {
+      id: `${id}-${i}`,
+      dx: Math.cos(angle) * dist,
+      dy: Math.sin(angle) * dist,
+      rot: Math.random() * 360,
+    }
+  })
+  const burst = { id, x, y, color, pieces }
+  particles.value = [...particles.value, burst]
+  setTimeout(() => {
+    particles.value = particles.value.filter((p) => p.id !== id)
+  }, 700)
+}
+
+const flashHealth = () => {
+  healthFlash.value = healthFlash.value + 1
+}
+
+const pickWord = (
+  pool: string[],
+  active: ActiveWord[],
+): string | undefined | null => {
+  const taken = new Set(active.map((w) => w.text))
+  const usableFirstLetters = new Set(active.map((w) => w.text[0]))
+  const available = pool.filter(
+    (w) => !taken.has(w) && !usableFirstLetters.has(w[0]),
+  )
+  const fromList =
+    available.length > 0 ? available : pool.filter((w) => !taken.has(w))
+  if (fromList.length === 0) return null
+  return fromList[Math.floor(Math.random() * fromList.length)]
+}
+
+const rollWordKind = (): ActiveWord['kind'] => {
+  const r = Math.random()
+  if (r < DANGER_CHANCE) return 'danger'
+  if (r < DANGER_CHANCE + POWERUP_CHANCE) {
+    return POWERUP_KINDS[
+      Math.floor(Math.random() * POWERUP_KINDS.length)
+    ] as ActiveWord['kind']
+  }
+  return 'normal'
+}
+
+const comboMultiplier = (combo: number): number => {
+  if (combo >= 20) return 4
+  if (combo >= 10) return 3
+  if (combo >= 5) return 2
+  return 1
+}
+
+const randomLeft = (active: ActiveWord[]): number => {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const x = LEFT_MIN + Math.random() * (LEFT_MAX - LEFT_MIN)
+    const tooClose = active.some((w) => w.y < 15 && Math.abs(w.x - x) < 18)
+    if (!tooClose) return x
+  }
+  return LEFT_MIN + Math.random() * (LEFT_MAX - LEFT_MIN)
+}
+
+watch(
+  [currentState, level, lang, flashHealth],
+  (
+    [newCurrentState, newLevel, newLang, newFlashHealth],
+    [oldCurrentState, oldLevel, oldLang, oldFlashHealth],
+  ) => {
+    if (newCurrentState !== 'game' || !newLevel) {
+      return
+    }
+    const cfg = getLevelConfig(newLevel, langRef)
+
+    let lastFrozen = false
+    let lastSlow = false
+    const tick = setInterval(() => {
+      if (wavePausedRef || pausedRef) return
+      const now = performance.now()
+      const isFrozen = now < freezeUntilRef
+      if (isFrozen !== lastFrozen) {
+        lastFrozen = isFrozen
+        freezeActive.value = isFrozen
+      }
+      if (isFrozen) return
+      const isSlow = now < slowUntilRef
+      if (isSlow !== lastSlow) {
+        lastSlow = isSlow
+        slowActive.value = isSlow
+      }
+      const slowMul = isSlow ? SLOW_FACTOR : 1
+
+      const prev = activeWordsRef
+      const next = []
+      let damageTaken = 0
+      let comboBroken = false
+      for (const w of prev) {
+        const speed = cfg.fallSpeed * speedFactorRef * slowMul
+        const ny = w.y + speed * (TICK_MS / 100)
+        if (ny >= BOTTOM_LIMIT) {
+          if (w.kind === 'danger') damageTaken += cfg.damage * 2
+          else if (w.kind === 'normal') damageTaken += cfg.damage
+          comboBroken = true
+          continue
+        }
+        next.push({ ...w, y: ny })
+      }
+      activeWords.value = next
+      if (damageTaken > 0) {
+        health.value = Math.max(0, health.value - damageTaken)
+        flashHealth()
+      }
+      if (comboBroken) {
+        combo.value = 0
+      }
+      if (matchedIdRef != null && !next.some((w) => w.id === matchedIdRef)) {
+        matchedWordId.value = null
+        typingWord.value = ''
+        hadErrorOnCurrent.value = false
+      }
+    }, TICK_MS)
+
+    const spawnOne = (prev: ActiveWord[]): ActiveWord[] => {
+      if (prev.length >= cfg.maxActive) return prev
+      const text = pickWord(cfg.pool, prev)
+      if (!text) return prev
+      idRef += 1
+      const kind = rollWordKind()
+      return [
+        ...prev,
+        { id: idRef, text, kind, x: randomLeft(prev), y: SPAWN_Y },
+      ]
+    }
+
+    let staggered = activeWordsRef
+    for (let i = 0; i < cfg.initialSpawn; i++) {
+      staggered = spawnOne(staggered)
+      const last = staggered[staggered.length - 1]
+      if (last) last.y = SPAWN_Y - i * 14
+    }
+    activeWords.value = [...staggered]
+
+    let spawner: number
+    const scheduleSpawner = () => {
+      const interval = Math.max(
+        SPAWN_FLOOR * cfg.spawnInterval,
+        cfg.spawnInterval * spawnFactorRef,
+      )
+      spawner = setInterval(() => {
+        if (wavePausedRef || pausedRef) return
+        activeWords.value = spawnOne(activeWords.value)
+        console.log(activeWords.value)
+      }, interval)
+    }
+    scheduleSpawner()
+
+    const speedup = setInterval(() => {
+      if (wavePausedRef || pausedRef) return
+      speedFactorRef = Math.min(SPEED_CAP, speedFactorRef * SPEEDUP_FACTOR)
+      spawnFactorRef = Math.max(
+        SPAWN_FLOOR,
+        spawnFactorRef * SPAWN_SPEEDUP_FACTOR,
+      )
+      clearInterval(spawner)
+      scheduleSpawner()
+    }, SPEEDUP_INTERVAL_MS)
+
+    const statsTick = setInterval(() => {
+      if (pausedRef) return
+      const elapsedMs = performance.now() - startTimeRef - pausedTotalRef
+      stats.value = {
+        correctChars: correctCharsRef,
+        totalChars: totalCharsRef,
+        wordsCompleted: wordsCompletedRef,
+        elapsedMs,
+      }
+    }, 250)
+
+    onWatcherCleanup(() => {
+      clearInterval(tick)
+      clearInterval(spawner)
+      clearInterval(speedup)
+      clearInterval(statsTick)
+    })
+  },
+)
+
+onMounted(() => {
+  preloadSounds()
+})
+
+watch(
+  [health, currentState, score],
+  (
+    [newHealth, newCurrentState, newScore],
+    [oldHealth, oldCurrentState, oldScore],
+  ) => {
+    if (newHealth <= 0 && newCurrentState === 'game') {
+      const key = `writé:highscore:${levelRef}`
+      const prev = parseInt(localStorage.getItem(key) || '0', 10)
+      if (score.value > prev) {
+        localStorage.setItem(key, String(score))
+        newRecord.value = true
+      } else {
+        newRecord.value = false
+      }
+      playSound('gameover')
+      currentState.value = 'gameover'
+    }
+  },
+)
+
+watch(
+  [wordsCompletedThisWave, wave, currentState],
+  (
+    [newWordsCompletedThisWave, newWave, newCurrentState],
+    [oldWordsCompletedThisWave, oldWave, oldCurrentState],
+  ) => {
+    if (wordsCompletedThisWave.value < WAVE_SIZE) return
+    if (newCurrentState !== 'game') return
+    const cfg = getLevelConfig(levelRef, langRef)
+    if (!cfg || !cfg.pool) return
+    const nextWave = newWave + 1
+    wordsCompletedThisWave.value = 0
+    wave.value = nextWave
+    waveBanner.value = { id: Date.now(), text: `WAVE ${nextWave}` }
+    playSound('wave')
+    wavePausedRef = true
+    activeWords.value = []
+    matchedWordId.value = null
+    typingWord.value = ''
+    hadErrorOnCurrent.value = false
+    setTimeout(() => {
+      if (stateRef !== 'game') return
+      wavePausedRef = false
+      waveBanner.value = null
+      let next = activeWords.value
+      for (let i = 0; i < cfg.initialSpawn; i++) {
+        if (next.length >= cfg.maxActive) break
+        const text = pickWord(cfg.pool, next)
+        if (!text) break
+        idRef += 1
+        next = [
+          ...next,
+          {
+            id: idRef,
+            text,
+            kind: rollWordKind(),
+            x: randomLeft(next),
+            y: SPAWN_Y - i * 14,
+          },
+        ]
+      }
+      activeWords.value = next
+    }, 1800)
+  },
+)
+
+watch(
+  [addFloating, burstParticles],
+  (
+    [newAddFloating, newBurstParticles],
+    [oldAddFloating, oldBurstParticles],
+  ) => {
+    const onKey = (e: any) => {
+      if (stateRef !== 'game') return
+      if (wavePausedRef) return
+
+      const togglePause = () => {
+        const next = !paused.value
+        if (next) {
+          pausedAtRef = performance.now()
+        } else if (pausedAtRef) {
+          pausedTotalRef += performance.now() - pausedAtRef
+          pausedAtRef = 0
+        }
+        paused.value = next
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        togglePause()
+        return
+      }
+
+      if (pausedRef) {
+        if (e.key === 'Escape') togglePause()
+        return
+      }
+
+      if (e.key === 'Escape') {
+        if (typingRef === '' && matchedIdRef == null) {
+          togglePause()
+        } else {
+          typingWord.value = ''
+          matchedWordId.value = null
+          hadErrorOnCurrent.value = false
+        }
+        return
+      }
+
+      if (e.key === 'Backspace') {
+        const t = typingRef
+        if (t.length <= 1) {
+          typingWord.value = ''
+          matchedWordId.value = null
+          hadErrorOnCurrent.value = false
+        } else {
+          typingWord.value = t.slice(0, -1)
+        }
+        return
+      }
+
+      if (e.key.length !== 1 || !isLetter(e.key)) return
+      if (e.ctrlKey || e.altKey || e.metaKey) return
+
+      const ch = normalizeLetter(e.key) as string
+      const active = activeWordsRef
+      let matchedId = matchedIdRef
+      let typed = typingRef
+
+      const triggerError = () => {
+        errorPulse.value = errorPulse.value + 1
+        combo.value = 0
+        hadErrorOnCurrent.value = true
+        totalCharsRef += 1
+        playSound('wrong')
+        if (errorTimeoutRef) clearTimeout(errorTimeoutRef)
+      }
+
+      if (matchedId == null) {
+        const candidates = active.filter((w) => w.text.startsWith(ch))
+        if (candidates.length === 0) {
+          if (active.length > 0) triggerError()
+          return
+        }
+        const lowest = candidates.reduce((a, b) => (a.y > b.y ? a : b))
+        matchedId = lowest.id
+        typed = ch
+        matchedWordId.value = matchedId
+        typingWord.value = typed
+        hadErrorOnCurrent.value = false
+        correctCharsRef += 1
+        totalCharsRef += 1
+        playSound('type')
+      } else {
+        const current = active.find((w) => w.id === matchedId)
+        if (!current) {
+          matchedWordId.value = null
+          typingWord.value = ''
+          hadErrorOnCurrent.value = false
+          return
+        }
+        if (typed.length >= current.text.length) {
+          triggerError()
+          return
+        }
+        const nextTyped = typed + ch
+        typed = nextTyped
+        typingWord.value = typed
+        if (!current.text.startsWith(nextTyped)) {
+          triggerError()
+          return
+        }
+        correctCharsRef += 1
+        totalCharsRef += 1
+        playSound('type')
+      }
+
+      const target = active.find((w) => w.id === matchedId)
+      if (target && typed === target.text) {
+        const hadError = hadErrorRef
+        const base = target.text.length
+        const mul = comboMultiplier(comboRef + 1)
+        let gained = base * mul
+        let bonusLabel = ''
+
+        if (target.kind === 'danger') {
+          gained *= DANGER_MULTIPLIER
+          bonusLabel = 'DANGER x2'
+        }
+        if (target.text.length >= LONG_WORD_THRESHOLD) {
+          gained += LONG_WORD_BONUS
+          bonusLabel = bonusLabel ? bonusLabel + ' · LONG' : 'LONG'
+        }
+        if (!hadError) {
+          gained += PERFECT_BONUS
+          bonusLabel = bonusLabel ? bonusLabel + ' · PERFECT' : 'PERFECT'
+        }
+
+        score.value = score.value + gained
+        addFloating(`+${gained}`, target.x, target.y, 'score')
+        if (bonusLabel) addFloating(bonusLabel, target.x, target.y - 5, 'bonus')
+        const burstColor =
+          target.kind === 'danger'
+            ? 'var(--danger)'
+            : target.kind === 'slow'
+              ? '#60a5fa'
+              : target.kind === 'freeze'
+                ? '#67e8f9'
+                : target.kind === 'heart'
+                  ? '#f472b6'
+                  : target.kind === 'bombclear'
+                    ? '#fbbf24'
+                    : 'var(--accent)'
+        burstParticles(target.x, target.y, burstColor)
+        wordsCompletedRef += 1
+
+        if (target.kind === 'slow') {
+          slowUntilRef = performance.now() + SLOW_DURATION_MS
+          addFloating('SLOW', target.x, target.y - 10, 'powerup')
+          playSound('slow')
+        } else if (target.kind === 'freeze') {
+          freezeUntilRef = performance.now() + FREEZE_DURATION_MS
+          addFloating('FREEZE', target.x, target.y - 10, 'powerup')
+          playSound('freeze')
+        } else if (target.kind === 'heart') {
+          health.value = Math.min(MAX_HEALTH, health.value + 1)
+          addFloating('+HEART', target.x, target.y - 10, 'powerup')
+          playSound('heart')
+        } else if (target.kind === 'danger') {
+          playSound('danger')
+        } else if (target.kind === 'normal') {
+          playSound('complete')
+        } else if (target.kind === 'bombclear') {
+          bombPulse.value = bombPulse.value + 1
+          playSound('bomb')
+          const remaining = activeWordsRef.filter((w) => w.id !== matchedId)
+          let bombScore = 0
+          for (const w of remaining) {
+            bombScore += w.text.length
+            addFloating(`+${w.text.length}`, w.x, w.y, 'score')
+            burstParticles(w.x, w.y, '#fbbf24')
+          }
+          score.value = score.value + bombScore
+          activeWords.value = []
+          wordsCompletedThisWave.value =
+            wordsCompletedThisWave.value + remaining.length + 1
+          wordsCompletedRef += remaining.length
+          addFloating('CLEAR', target.x, target.y - 10, 'powerup')
+
+          const nc = combo.value + 1 + remaining.length
+          bestCombo.value = Math.max(bestCombo.value, nc)
+          combo.value = nc
+
+          typingWord.value = ''
+          matchedWordId.value = null
+          hadErrorOnCurrent.value = false
+
+          return
+        }
+
+        activeWords.value = activeWords.value.filter((w) => w.id !== matchedId)
+
+        const nc = combo.value + 1
+        bestCombo.value = Math.max(bestCombo.value, nc)
+        combo.value = nc
+
+        wordsCompletedThisWave.value = wordsCompletedThisWave.value + 1
+        typingWord.value = ''
+        matchedWordId.value = null
+        hadErrorOnCurrent.value = false
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+  },
+)
+
+const minutes = stats.value.elapsedMs / 60000
+const wpm = minutes > 0 ? Math.round(stats.value.correctChars / 5 / minutes) : 0
+const accuracy =
+  stats.value.totalChars > 0
+    ? Math.round((stats.value.correctChars / stats.value.totalChars) * 100)
+    : 100
 </script>
 
 <template>
@@ -146,8 +703,20 @@ const backToLevel = () => {
     :level="level"
     :set-level="startGame"
   />
+  <GameOver
+    v-if="currentState === 'gameover'"
+    :score="score"
+    :level="level"
+    :wave="wave"
+    :best-combo="bestCombo"
+    :wpm="wpm"
+    :accuracy="accuracy"
+    :new-record="newRecord"
+    :on-restart="() => startGame(level)"
+    :on-menu="backToLevel"
+  />
   <GameScreen
-    v-else
+    v-if="currentState === 'game'"
     :active-words="activeWords"
     :typing-word="typingWord"
     :matched-word-id="matchedWordId"
@@ -157,6 +726,12 @@ const backToLevel = () => {
     :particles="particles"
     :floating-texts="floatingTexts"
     :wave-banner="waveBanner"
+    :wave="wave"
+    :combo="combo"
+    :multiplier="comboMultiplier(combo)"
+    :wpm="wpm"
+    :accuracy="accuracy"
+    :score="score"
     :health="health"
     :on-restart="backToLevel"
     :slow-active="slowActive"
