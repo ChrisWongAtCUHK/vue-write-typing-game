@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { ref, watch, onWatcherCleanup, onMounted } from 'vue'
+import {
+  ref,
+  watch,
+  onWatcherCleanup,
+  onMounted,
+  onUnmounted,
+  computed,
+} from 'vue'
 import { easyWords, mediumWords, hardWords, expertWords } from './config/words'
 import type ActiveWord from '@/types/activeWord.ts'
 import type Particle from '@/types/particle.ts'
@@ -86,7 +93,7 @@ const SPAWN_FLOOR = 0.6
 
 const POWERUP_CHANCE = 0.18
 const DANGER_CHANCE = 0.08
-const POWERUP_KINDS = ['slow', 'freeze', 'heart', 'bombclear']
+const POWERUP_KINDS = ['slow', 'freeze', 'heart', 'bombclear'] as const
 
 const SLOW_DURATION_MS = 5000
 const SLOW_FACTOR = 0.4
@@ -157,6 +164,18 @@ let stateRef = currentState.value
 let levelRef = level.value
 let hadErrorRef = hadErrorOnCurrent.value
 let comboRef = combo.value
+
+const minutes = computed(() => stats.value.elapsedMs / 60000)
+const wpm = computed(() =>
+  minutes.value > 0
+    ? Math.round(stats.value.correctChars / 5 / minutes.value)
+    : 0,
+)
+const accuracy = computed(() =>
+  stats.value.totalChars > 0
+    ? Math.round((stats.value.correctChars / stats.value.totalChars) * 100)
+    : 100,
+)
 
 const resetRunState = () => {
   activeWords.value = []
@@ -284,11 +303,8 @@ const randomLeft = (active: ActiveWord[]): number => {
 }
 
 watch(
-  [currentState, level, lang, flashHealth],
-  (
-    [newCurrentState, newLevel, newLang, newFlashHealth],
-    [oldCurrentState, oldLevel, oldLang, oldFlashHealth],
-  ) => {
+  [currentState, level, lang],
+  ([newCurrentState, newLevel, newLang]) => {
     if (newCurrentState !== 'game' || !newLevel) {
       return
     }
@@ -371,7 +387,6 @@ watch(
       spawner = setInterval(() => {
         if (wavePausedRef || pausedRef) return
         activeWords.value = spawnOne(activeWords.value)
-        console.log(activeWords.value)
       }, interval)
     }
     scheduleSpawner()
@@ -405,22 +420,16 @@ watch(
       clearInterval(statsTick)
     })
   },
+  { immediate: true },
 )
-
-onMounted(() => {
-  preloadSounds()
-})
 
 watch(
   [health, currentState, score],
-  (
-    [newHealth, newCurrentState, newScore],
-    [oldHealth, oldCurrentState, oldScore],
-  ) => {
+  ([newHealth, newCurrentState, newScore]) => {
     if (newHealth <= 0 && newCurrentState === 'game') {
       const key = `writé:highscore:${levelRef}`
       const prev = parseInt(localStorage.getItem(key) || '0', 10)
-      if (score.value > prev) {
+      if (newScore > prev) {
         localStorage.setItem(key, String(score))
         newRecord.value = true
       } else {
@@ -434,11 +443,8 @@ watch(
 
 watch(
   [wordsCompletedThisWave, wave, currentState],
-  (
-    [newWordsCompletedThisWave, newWave, newCurrentState],
-    [oldWordsCompletedThisWave, oldWave, oldCurrentState],
-  ) => {
-    if (wordsCompletedThisWave.value < WAVE_SIZE) return
+  ([newWordsCompletedThisWave, newWave, newCurrentState]) => {
+    if (newWordsCompletedThisWave < WAVE_SIZE) return
     if (newCurrentState !== 'game') return
     const cfg = getLevelConfig(levelRef, langRef)
     if (!cfg || !cfg.pool) return
@@ -478,223 +484,214 @@ watch(
   },
 )
 
-watch(
-  [addFloating, burstParticles],
-  (
-    [newAddFloating, newBurstParticles],
-    [oldAddFloating, oldBurstParticles],
-  ) => {
-    const onKey = (e: any) => {
-      if (stateRef !== 'game') return
-      if (wavePausedRef) return
+const onKey = (e: any) => {
+  if (stateRef !== 'game') return
+  if (wavePausedRef) return
 
-      const togglePause = () => {
-        const next = !paused.value
-        if (next) {
-          pausedAtRef = performance.now()
-        } else if (pausedAtRef) {
-          pausedTotalRef += performance.now() - pausedAtRef
-          pausedAtRef = 0
-        }
-        paused.value = next
-      }
+  const togglePause = () => {
+    const next = !paused.value
+    if (next) {
+      pausedAtRef = performance.now()
+    } else if (pausedAtRef) {
+      pausedTotalRef += performance.now() - pausedAtRef
+      pausedAtRef = 0
+    }
+    paused.value = next
+  }
 
-      if (e.key === 'Tab') {
-        e.preventDefault()
-        togglePause()
-        return
-      }
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    togglePause()
+    return
+  }
 
-      if (pausedRef) {
-        if (e.key === 'Escape') togglePause()
-        return
-      }
+  if (pausedRef) {
+    if (e.key === 'Escape') togglePause()
+    return
+  }
 
-      if (e.key === 'Escape') {
-        if (typingRef === '' && matchedIdRef == null) {
-          togglePause()
-        } else {
-          typingWord.value = ''
-          matchedWordId.value = null
-          hadErrorOnCurrent.value = false
-        }
-        return
-      }
+  if (e.key === 'Escape') {
+    if (typingRef === '' && matchedIdRef == null) {
+      togglePause()
+    } else {
+      typingWord.value = ''
+      matchedWordId.value = null
+      hadErrorOnCurrent.value = false
+    }
+    return
+  }
 
-      if (e.key === 'Backspace') {
-        const t = typingRef
-        if (t.length <= 1) {
-          typingWord.value = ''
-          matchedWordId.value = null
-          hadErrorOnCurrent.value = false
-        } else {
-          typingWord.value = t.slice(0, -1)
-        }
-        return
-      }
+  if (e.key === 'Backspace') {
+    const t = typingRef
+    if (t.length <= 1) {
+      typingWord.value = ''
+      matchedWordId.value = null
+      hadErrorOnCurrent.value = false
+    } else {
+      typingWord.value = t.slice(0, -1)
+    }
+    return
+  }
 
-      if (e.key.length !== 1 || !isLetter(e.key)) return
-      if (e.ctrlKey || e.altKey || e.metaKey) return
+  if (e.key.length !== 1 || !isLetter(e.key)) return
+  if (e.ctrlKey || e.altKey || e.metaKey) return
 
-      const ch = normalizeLetter(e.key) as string
-      const active = activeWordsRef
-      let matchedId = matchedIdRef
-      let typed = typingRef
+  const ch = normalizeLetter(e.key) as string
+  const active = activeWordsRef
+  let matchedId = matchedIdRef
+  let typed = typingRef
 
-      const triggerError = () => {
-        errorPulse.value = errorPulse.value + 1
-        combo.value = 0
-        hadErrorOnCurrent.value = true
-        totalCharsRef += 1
-        playSound('wrong')
-        if (errorTimeoutRef) clearTimeout(errorTimeoutRef)
-      }
+  const triggerError = () => {
+    errorPulse.value = errorPulse.value + 1
+    combo.value = 0
+    hadErrorOnCurrent.value = true
+    totalCharsRef += 1
+    playSound('wrong')
+  }
 
-      if (matchedId == null) {
-        const candidates = active.filter((w) => w.text.startsWith(ch))
-        if (candidates.length === 0) {
-          if (active.length > 0) triggerError()
-          return
-        }
-        const lowest = candidates.reduce((a, b) => (a.y > b.y ? a : b))
-        matchedId = lowest.id
-        typed = ch
-        matchedWordId.value = matchedId
-        typingWord.value = typed
-        hadErrorOnCurrent.value = false
-        correctCharsRef += 1
-        totalCharsRef += 1
-        playSound('type')
-      } else {
-        const current = active.find((w) => w.id === matchedId)
-        if (!current) {
-          matchedWordId.value = null
-          typingWord.value = ''
-          hadErrorOnCurrent.value = false
-          return
-        }
-        if (typed.length >= current.text.length) {
-          triggerError()
-          return
-        }
-        const nextTyped = typed + ch
-        typed = nextTyped
-        typingWord.value = typed
-        if (!current.text.startsWith(nextTyped)) {
-          triggerError()
-          return
-        }
-        correctCharsRef += 1
-        totalCharsRef += 1
-        playSound('type')
-      }
+  if (matchedId == null) {
+    const candidates = active.filter((w) => w.text.startsWith(ch))
+    if (candidates.length === 0) {
+      if (active.length > 0) triggerError()
+      return
+    }
+    const lowest = candidates.reduce((a, b) => (a.y > b.y ? a : b))
+    matchedId = lowest.id
+    typed = ch
+    matchedWordId.value = matchedId
+    typingWord.value = typed
+    hadErrorOnCurrent.value = false
+    correctCharsRef += 1
+    totalCharsRef += 1
+    playSound('type')
+  } else {
+    const current = active.find((w) => w.id === matchedId)
+    if (!current) {
+      matchedWordId.value = null
+      typingWord.value = ''
+      hadErrorOnCurrent.value = false
+      return
+    }
+    if (typed.length >= current.text.length) {
+      triggerError()
+      return
+    }
+    const nextTyped = typed + ch
+    typed = nextTyped
+    typingWord.value = typed
+    if (!current.text.startsWith(nextTyped)) {
+      triggerError()
+      return
+    }
+    correctCharsRef += 1
+    totalCharsRef += 1
+    playSound('type')
+  }
 
-      const target = active.find((w) => w.id === matchedId)
-      if (target && typed === target.text) {
-        const hadError = hadErrorRef
-        const base = target.text.length
-        const mul = comboMultiplier(comboRef + 1)
-        let gained = base * mul
-        let bonusLabel = ''
+  const target = active.find((w) => w.id === matchedId)
+  if (target && typed === target.text) {
+    const hadError = hadErrorRef
+    const base = target.text.length
+    const mul = comboMultiplier(comboRef + 1)
+    let gained = base * mul
+    let bonusLabel = ''
 
-        if (target.kind === 'danger') {
-          gained *= DANGER_MULTIPLIER
-          bonusLabel = 'DANGER x2'
-        }
-        if (target.text.length >= LONG_WORD_THRESHOLD) {
-          gained += LONG_WORD_BONUS
-          bonusLabel = bonusLabel ? bonusLabel + ' · LONG' : 'LONG'
-        }
-        if (!hadError) {
-          gained += PERFECT_BONUS
-          bonusLabel = bonusLabel ? bonusLabel + ' · PERFECT' : 'PERFECT'
-        }
-
-        score.value = score.value + gained
-        addFloating(`+${gained}`, target.x, target.y, 'score')
-        if (bonusLabel) addFloating(bonusLabel, target.x, target.y - 5, 'bonus')
-        const burstColor =
-          target.kind === 'danger'
-            ? 'var(--danger)'
-            : target.kind === 'slow'
-              ? '#60a5fa'
-              : target.kind === 'freeze'
-                ? '#67e8f9'
-                : target.kind === 'heart'
-                  ? '#f472b6'
-                  : target.kind === 'bombclear'
-                    ? '#fbbf24'
-                    : 'var(--accent)'
-        burstParticles(target.x, target.y, burstColor)
-        wordsCompletedRef += 1
-
-        if (target.kind === 'slow') {
-          slowUntilRef = performance.now() + SLOW_DURATION_MS
-          addFloating('SLOW', target.x, target.y - 10, 'powerup')
-          playSound('slow')
-        } else if (target.kind === 'freeze') {
-          freezeUntilRef = performance.now() + FREEZE_DURATION_MS
-          addFloating('FREEZE', target.x, target.y - 10, 'powerup')
-          playSound('freeze')
-        } else if (target.kind === 'heart') {
-          health.value = Math.min(MAX_HEALTH, health.value + 1)
-          addFloating('+HEART', target.x, target.y - 10, 'powerup')
-          playSound('heart')
-        } else if (target.kind === 'danger') {
-          playSound('danger')
-        } else if (target.kind === 'normal') {
-          playSound('complete')
-        } else if (target.kind === 'bombclear') {
-          bombPulse.value = bombPulse.value + 1
-          playSound('bomb')
-          const remaining = activeWordsRef.filter((w) => w.id !== matchedId)
-          let bombScore = 0
-          for (const w of remaining) {
-            bombScore += w.text.length
-            addFloating(`+${w.text.length}`, w.x, w.y, 'score')
-            burstParticles(w.x, w.y, '#fbbf24')
-          }
-          score.value = score.value + bombScore
-          activeWords.value = []
-          wordsCompletedThisWave.value =
-            wordsCompletedThisWave.value + remaining.length + 1
-          wordsCompletedRef += remaining.length
-          addFloating('CLEAR', target.x, target.y - 10, 'powerup')
-
-          const nc = combo.value + 1 + remaining.length
-          bestCombo.value = Math.max(bestCombo.value, nc)
-          combo.value = nc
-
-          typingWord.value = ''
-          matchedWordId.value = null
-          hadErrorOnCurrent.value = false
-
-          return
-        }
-
-        activeWords.value = activeWords.value.filter((w) => w.id !== matchedId)
-
-        const nc = combo.value + 1
-        bestCombo.value = Math.max(bestCombo.value, nc)
-        combo.value = nc
-
-        wordsCompletedThisWave.value = wordsCompletedThisWave.value + 1
-        typingWord.value = ''
-        matchedWordId.value = null
-        hadErrorOnCurrent.value = false
-      }
+    if (target.kind === 'danger') {
+      gained *= DANGER_MULTIPLIER
+      bonusLabel = 'DANGER x2'
+    }
+    if (target.text.length >= LONG_WORD_THRESHOLD) {
+      gained += LONG_WORD_BONUS
+      bonusLabel = bonusLabel ? bonusLabel + ' · LONG' : 'LONG'
+    }
+    if (!hadError) {
+      gained += PERFECT_BONUS
+      bonusLabel = bonusLabel ? bonusLabel + ' · PERFECT' : 'PERFECT'
     }
 
-    window.addEventListener('keydown', onKey)
-  },
-)
+    score.value = score.value + gained
+    addFloating(`+${gained}`, target.x, target.y, 'score')
+    if (bonusLabel) addFloating(bonusLabel, target.x, target.y - 5, 'bonus')
+    const burstColor =
+      target.kind === 'danger'
+        ? 'var(--danger)'
+        : target.kind === 'slow'
+          ? '#60a5fa'
+          : target.kind === 'freeze'
+            ? '#67e8f9'
+            : target.kind === 'heart'
+              ? '#f472b6'
+              : target.kind === 'bombclear'
+                ? '#fbbf24'
+                : 'var(--accent)'
+    burstParticles(target.x, target.y, burstColor)
+    wordsCompletedRef += 1
 
-const minutes = stats.value.elapsedMs / 60000
-const wpm = minutes > 0 ? Math.round(stats.value.correctChars / 5 / minutes) : 0
-const accuracy =
-  stats.value.totalChars > 0
-    ? Math.round((stats.value.correctChars / stats.value.totalChars) * 100)
-    : 100
+    if (target.kind === 'slow') {
+      slowUntilRef = performance.now() + SLOW_DURATION_MS
+      addFloating('SLOW', target.x, target.y - 10, 'powerup')
+      playSound('slow')
+    } else if (target.kind === 'freeze') {
+      freezeUntilRef = performance.now() + FREEZE_DURATION_MS
+      addFloating('FREEZE', target.x, target.y - 10, 'powerup')
+      playSound('freeze')
+    } else if (target.kind === 'heart') {
+      health.value = Math.min(MAX_HEALTH, health.value + 1)
+      addFloating('+HEART', target.x, target.y - 10, 'powerup')
+      playSound('heart')
+    } else if (target.kind === 'danger') {
+      playSound('danger')
+    } else if (target.kind === 'normal') {
+      playSound('complete')
+    } else if (target.kind === 'bombclear') {
+      bombPulse.value = bombPulse.value + 1
+      playSound('bomb')
+      const remaining = activeWordsRef.filter((w) => w.id !== matchedId)
+      let bombScore = 0
+      for (const w of remaining) {
+        bombScore += w.text.length
+        addFloating(`+${w.text.length}`, w.x, w.y, 'score')
+        burstParticles(w.x, w.y, '#fbbf24')
+      }
+      score.value = score.value + bombScore
+      activeWords.value = []
+      wordsCompletedThisWave.value =
+        wordsCompletedThisWave.value + remaining.length + 1
+      wordsCompletedRef += remaining.length
+      addFloating('CLEAR', target.x, target.y - 10, 'powerup')
+
+      const nc = combo.value + 1 + remaining.length
+      bestCombo.value = Math.max(bestCombo.value, nc)
+      combo.value = nc
+
+      typingWord.value = ''
+      matchedWordId.value = null
+      hadErrorOnCurrent.value = false
+
+      return
+    }
+
+    activeWords.value = activeWords.value.filter((w) => w.id !== matchedId)
+
+    const nc = combo.value + 1
+    bestCombo.value = Math.max(bestCombo.value, nc)
+    combo.value = nc
+
+    wordsCompletedThisWave.value = wordsCompletedThisWave.value + 1
+    typingWord.value = ''
+    matchedWordId.value = null
+    hadErrorOnCurrent.value = false
+  }
+}
+
+onMounted(() => {
+  preloadSounds()
+  window.addEventListener('keydown', onKey)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKey)
+})
 </script>
 
 <template>
