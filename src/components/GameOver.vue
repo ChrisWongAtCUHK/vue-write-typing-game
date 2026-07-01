@@ -22,7 +22,7 @@ const highScore = parseInt(
 <template>
   <div class="wrapper">
     <Header />
-    <div class="content">
+    <div class="gameover-content">
       <div class="title">GAME OVER</div>
       <div v-if="newRecord" class="record-badge">NEW RECORD</div>
       <div class="stats">
@@ -73,7 +73,7 @@ div.wrapper {
   height: 100vh;
 }
 
-div.content {
+div.gameover-content {
   flex: 1;
   display: flex;
   flex-direction: column;
