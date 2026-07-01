@@ -160,7 +160,6 @@ let idRef = 0
 let activeWordsRef = activeWords.value
 let matchedIdRef = matchedWordId.value
 let typingRef = typingWord.value
-let stateRef = currentState.value
 let levelRef = level.value
 let hadErrorRef = hadErrorOnCurrent.value
 let comboRef = combo.value
@@ -494,7 +493,7 @@ watch(wordsCompletedThisWave, (newCount) => {
 })
 
 const onKey = (e: any) => {
-  if (stateRef !== 'game') return
+  if (currentState.value !== 'game') return
   if (wavePausedRef) return
 
   const togglePause = () => {
