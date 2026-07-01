@@ -40,3 +40,5 @@ npm run dev
 ```sh
 npm run build
 ```
+
+# [Writé Typing Game](https://github.com/azateser/write-typing-game)
