@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import Header from './Header.vue'
 import Bottom from './Bottom.vue'
 import type ActiveWord from '@/types/activeWord.ts'
@@ -33,7 +33,7 @@ const props = defineProps<{
 }>()
 
 const matched =
-  props.activeWords.find((w) => w.id === props.matchedWordId) || null
+  computed(() => props.activeWords.find((w) => w.id === props.matchedWordId) || null)
 
 const shaking = ref(false)
 const hurting = ref(false)
