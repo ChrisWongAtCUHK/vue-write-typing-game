@@ -302,18 +302,40 @@ const randomLeft = (active: ActiveWord[]): number => {
   return LEFT_MIN + Math.random() * (LEFT_MAX - LEFT_MIN)
 }
 
-watch(
-  [currentState, level, lang],
-  ([newCurrentState, newLevel, newLang]) => {
-    if (newCurrentState !== 'game' || !newLevel) {
-      return
-    }
-    const cfg = getLevelConfig(newLevel, langRef)
+// --- Parameterless Spawn logic that mutates array directly ---
+const spawnOne = (): void => {
+  if (!level.value) return
+  const cfg = getLevelConfig(level.value, lang.value)
+  if (activeWords.value.length >= cfg.maxActive) return
 
+  const text = pickWord(cfg.pool, activeWords.value)
+  if (!text) return
+
+  idRef += 1
+  activeWords.value.push({
+    id: idRef,
+    text,
+    kind: rollWordKind(),
+    x: randomLeft(activeWords.value),
+    y: SPAWN_Y,
+  })
+}
+
+// --- Fixed Game Engine Setup Hook ---
+watch(
+  currentState,
+  (newState) => {
+    // Only initialize the engine loops when explicitly transitioning into the game screen
+    if (newState !== 'game' || !level.value) return
+
+    const cfg = getLevelConfig(level.value, lang.value)
     let lastFrozen = false
     let lastSlow = false
+
+    // 1. The Gravity Ticker (Runs independently without tearing down)
     const tick = setInterval(() => {
-      if (wavePausedRef || pausedRef) return
+      if (wavePausedRef || paused.value) return
+
       const now = performance.now()
       const isFrozen = now < freezeUntilRef
       if (isFrozen !== lastFrozen) {
@@ -321,6 +343,7 @@ watch(
         freezeActive.value = isFrozen
       }
       if (isFrozen) return
+
       const isSlow = now < slowUntilRef
       if (isSlow !== lastSlow) {
         lastSlow = isSlow
@@ -328,22 +351,31 @@ watch(
       }
       const slowMul = isSlow ? SLOW_FACTOR : 1
 
-      const prev = activeWordsRef
-      const next = []
       let damageTaken = 0
       let comboBroken = false
-      for (const w of prev) {
+
+      // Create a shallow copy array container to bypass layout dependency loops
+      const updatedList = [...activeWords.value]
+
+      for (let i = updatedList.length - 1; i >= 0; i--) {
+        const w = updatedList[i] as ActiveWord
         const speed = cfg.fallSpeed * speedFactorRef * slowMul
         const ny = w.y + speed * (TICK_MS / 100)
+
         if (ny >= BOTTOM_LIMIT) {
           if (w.kind === 'danger') damageTaken += cfg.damage * 2
           else if (w.kind === 'normal') damageTaken += cfg.damage
           comboBroken = true
+          updatedList.splice(i, 1)
           continue
         }
-        next.push({ ...w, y: ny })
+
+        updatedList[i] = { ...w, y: ny }
       }
-      activeWords.value = next
+
+      // Explicitly assign back the modified references to fire the template re-rendering cycle safely
+      activeWords.value = updatedList
+
       if (damageTaken > 0) {
         health.value = Math.max(0, health.value - damageTaken)
         flashHealth()
@@ -351,33 +383,24 @@ watch(
       if (comboBroken) {
         combo.value = 0
       }
-      if (matchedIdRef != null && !next.some((w) => w.id === matchedIdRef)) {
+      if (
+        matchedWordId.value != null &&
+        !activeWords.value.some((w) => w.id === matchedWordId.value)
+      ) {
         matchedWordId.value = null
         typingWord.value = ''
         hadErrorOnCurrent.value = false
       }
     }, TICK_MS)
 
-    const spawnOne = (prev: ActiveWord[]): ActiveWord[] => {
-      if (prev.length >= cfg.maxActive) return prev
-      const text = pickWord(cfg.pool, prev)
-      if (!text) return prev
-      idRef += 1
-      const kind = rollWordKind()
-      return [
-        ...prev,
-        { id: idRef, text, kind, x: randomLeft(prev), y: SPAWN_Y },
-      ]
-    }
-
-    let staggered = activeWordsRef
+    // Stage initial parameters sequentially on launch
     for (let i = 0; i < cfg.initialSpawn; i++) {
-      staggered = spawnOne(staggered)
-      const last = staggered[staggered.length - 1]
+      spawnOne()
+      const last = activeWords.value[activeWords.value.length - 1]
       if (last) last.y = SPAWN_Y - i * 14
     }
-    activeWords.value = [...staggered]
 
+    // 2. The Spawner Loop
     let spawner: number
     const scheduleSpawner = () => {
       const interval = Math.max(
@@ -385,14 +408,15 @@ watch(
         cfg.spawnInterval * spawnFactorRef,
       )
       spawner = setInterval(() => {
-        if (wavePausedRef || pausedRef) return
-        activeWords.value = spawnOne(activeWords.value)
+        if (wavePausedRef || paused.value) return
+        spawnOne()
       }, interval)
     }
     scheduleSpawner()
 
+    // 3. Game Progression Escalation Ticker
     const speedup = setInterval(() => {
-      if (wavePausedRef || pausedRef) return
+      if (wavePausedRef || paused.value) return
       speedFactorRef = Math.min(SPEED_CAP, speedFactorRef * SPEEDUP_FACTOR)
       spawnFactorRef = Math.max(
         SPAWN_FLOOR,
@@ -402,8 +426,9 @@ watch(
       scheduleSpawner()
     }, SPEEDUP_INTERVAL_MS)
 
+    // 4. Game Stats Run Elapsed Metric Ticker
     const statsTick = setInterval(() => {
-      if (pausedRef) return
+      if (paused.value) return
       const elapsedMs = performance.now() - startTimeRef - pausedTotalRef
       stats.value = {
         correctChars: correctCharsRef,
@@ -413,6 +438,7 @@ watch(
       }
     }, 250)
 
+    // Cleanup triggers explicitly only when transitioning away from 'game' state screen
     onWatcherCleanup(() => {
       clearInterval(tick)
       clearInterval(spawner)
@@ -423,66 +449,49 @@ watch(
   { immediate: true },
 )
 
-watch(
-  [health, currentState, score],
-  ([newHealth, newCurrentState, newScore]) => {
-    if (newHealth <= 0 && newCurrentState === 'game') {
-      const key = `writé:highscore:${levelRef}`
-      const prev = parseInt(localStorage.getItem(key) || '0', 10)
-      if (newScore > prev) {
-        localStorage.setItem(key, String(score))
-        newRecord.value = true
-      } else {
-        newRecord.value = false
-      }
-      playSound('gameover')
-      currentState.value = 'gameover'
+watch([health, currentState], ([newHealth, newCurrentState]) => {
+  if (newHealth <= 0 && newCurrentState === 'game') {
+    const key = `writé:highscore:${levelRef}`
+    const prev = parseInt(localStorage.getItem(key) || '0', 10)
+    if (score.value > prev) {
+      localStorage.setItem(key, String(score.value))
+      newRecord.value = true
+    } else {
+      newRecord.value = false
     }
-  },
-)
+    playSound('gameover')
+    currentState.value = 'gameover'
+  }
+})
 
-watch(
-  [wordsCompletedThisWave, wave, currentState],
-  ([newWordsCompletedThisWave, newWave, newCurrentState]) => {
-    if (newWordsCompletedThisWave < WAVE_SIZE) return
-    if (newCurrentState !== 'game') return
-    const cfg = getLevelConfig(levelRef, langRef)
-    if (!cfg || !cfg.pool) return
-    const nextWave = newWave + 1
-    wordsCompletedThisWave.value = 0
-    wave.value = nextWave
-    waveBanner.value = { id: Date.now(), text: `WAVE ${nextWave}` }
-    playSound('wave')
-    wavePausedRef = true
-    activeWords.value = []
-    matchedWordId.value = null
-    typingWord.value = ''
-    hadErrorOnCurrent.value = false
-    setTimeout(() => {
-      if (stateRef !== 'game') return
-      wavePausedRef = false
-      waveBanner.value = null
-      let next = activeWords.value
-      for (let i = 0; i < cfg.initialSpawn; i++) {
-        if (next.length >= cfg.maxActive) break
-        const text = pickWord(cfg.pool, next)
-        if (!text) break
-        idRef += 1
-        next = [
-          ...next,
-          {
-            id: idRef,
-            text,
-            kind: rollWordKind(),
-            x: randomLeft(next),
-            y: SPAWN_Y - i * 14,
-          },
-        ]
-      }
-      activeWords.value = next
-    }, 1800)
-  },
-)
+watch(wordsCompletedThisWave, (newCount) => {
+  if (newCount < WAVE_SIZE) return
+  if (currentState.value !== 'game') return
+  const cfg = getLevelConfig(levelRef, langRef)
+  if (!cfg || !cfg.pool) return
+  const nextWave = wave.value + 1
+  wordsCompletedThisWave.value = 0
+  wave.value = nextWave
+  waveBanner.value = { id: Date.now(), text: `WAVE ${nextWave}` }
+  playSound('wave')
+  wavePausedRef = true
+  activeWords.value = []
+  matchedWordId.value = null
+  typingWord.value = ''
+  hadErrorOnCurrent.value = false
+  setTimeout(() => {
+    if (currentState.value !== 'game') return
+    wavePausedRef = false
+    waveBanner.value = null
+
+    // Clean parameterless iteration for wave transitions
+    for (let i = 0; i < cfg.initialSpawn; i++) {
+      spawnOne()
+      const last = activeWords.value[activeWords.value.length - 1]
+      if (last) last.y = SPAWN_Y - i * 14
+    }
+  }, 1800)
+})
 
 const onKey = (e: any) => {
   if (stateRef !== 'game') return

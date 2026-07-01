@@ -1,16 +1,13 @@
 <script setup lang="ts">
-interface Props {
+import { computed } from 'vue'
+const props = defineProps<{
   word: string
   kind?: 'slow' | 'freeze' | 'heart' | 'bombclear' | 'danger' | 'normal'
   x: number
   y: number
   isMatched: boolean
   typingWord: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  kind: 'normal',
-})
+}>()
 
 const KIND_BADGE = {
   slow: 'SLOW',
@@ -20,7 +17,7 @@ const KIND_BADGE = {
   danger: 'DANGER',
 }
 
-const clampedY = Math.min(Math.max(props.y, -20), 90)
+const clampedY = computed(() => Math.min(Math.max(props.y, -20), 90))
 
 let correctCount = 0
 if (props.isMatched) {
@@ -33,9 +30,13 @@ if (props.isMatched) {
   }
 }
 
-const progress = props.isMatched ? correctCount / props.word.length : 0
-const scale = props.isMatched ? 1.1 + progress * 0.35 : 1
-const glowStrength = 12 + progress * 38
+const progress = computed(() =>
+  props.isMatched ? correctCount / props.word.length : 0,
+)
+const scale = computed(() =>
+  props.isMatched ? 1.1 + progress.value * 0.35 : 1,
+)
+const glowStrength = computed(() => 12 + progress.value * 38)
 
 const colorFor = (letter: string, i: number) => {
   if (!props.isMatched) return undefined
@@ -58,7 +59,7 @@ if (props.isMatched) {
   classNames.push('matched')
 }
 
-if (progress >= 0.99) {
+if (progress.value >= 0.99) {
   classNames.push('about-to-pop')
 }
 
@@ -89,8 +90,12 @@ const badgeColors = {
       :style="{
         color:
           badgeColors[kind as keyof typeof KIND_BADGE] || `var(--text-dim)`,
-        border: `1px solid ${badgeColors[kind as keyof typeof KIND_BADGE]} || var(--border)`,
-        boxShadow: `0 0 10px ${badgeColors[kind as keyof typeof KIND_BADGE]} || transparent`,
+        border:
+          `1px solid ` + `${badgeColors[kind as keyof typeof KIND_BADGE]}` ||
+          `var(--border)`,
+        boxShadow:
+          `0 0 10px ` + `${badgeColors[kind as keyof typeof KIND_BADGE]}` ||
+          `transparent`,
         animation:
           kind === `danger`
             ? `dangerPulse 1.2s ease-in-out infinite`

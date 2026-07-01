@@ -104,6 +104,7 @@ const getFloatingTextStyle = (x: number, y: number, variant: string) => {
 
   return style
 }
+
 </script>
 
 <template>
