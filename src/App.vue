@@ -157,9 +157,6 @@ let wavePausedRef = false
 
 let errorTimeoutRef = null
 let idRef = 0
-let activeWordsRef = activeWords.value
-let matchedIdRef = matchedWordId.value
-let typingRef = typingWord.value
 let levelRef = level.value
 let hadErrorRef = hadErrorOnCurrent.value
 let comboRef = combo.value
@@ -519,7 +516,7 @@ const onKey = (e: any) => {
   }
 
   if (e.key === 'Escape') {
-    if (typingRef === '' && matchedIdRef == null) {
+    if (typingWord.value === '' && matchedWordId.value === null) {
       togglePause()
     } else {
       typingWord.value = ''
@@ -530,7 +527,7 @@ const onKey = (e: any) => {
   }
 
   if (e.key === 'Backspace') {
-    const t = typingRef
+    const t = typingWord.value
     if (t.length <= 1) {
       typingWord.value = ''
       matchedWordId.value = null
@@ -545,9 +542,9 @@ const onKey = (e: any) => {
   if (e.ctrlKey || e.altKey || e.metaKey) return
 
   const ch = normalizeLetter(e.key) as string
-  const active = activeWordsRef
-  let matchedId = matchedIdRef
-  let typed = typingRef
+  const active = [...activeWords.value]
+  let matchedId = matchedWordId.value
+  let typed = typingWord.value
 
   const triggerError = () => {
     errorPulse.value = errorPulse.value + 1
@@ -557,7 +554,7 @@ const onKey = (e: any) => {
     playSound('wrong')
   }
 
-  if (matchedId == null) {
+  if (matchedId === null) {
     const candidates = active.filter((w) => w.text.startsWith(ch))
     if (candidates.length === 0) {
       if (active.length > 0) triggerError()
@@ -654,7 +651,7 @@ const onKey = (e: any) => {
     } else if (target.kind === 'bombclear') {
       bombPulse.value = bombPulse.value + 1
       playSound('bomb')
-      const remaining = activeWordsRef.filter((w) => w.id !== matchedId)
+      const remaining = activeWords.value.filter((w) => w.id !== matchedId)
       let bombScore = 0
       for (const w of remaining) {
         bombScore += w.text.length
