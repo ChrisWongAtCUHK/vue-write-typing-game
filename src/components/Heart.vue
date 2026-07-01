@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import Heart from '../assets/images/heart.svg'
 import HeartEmpty from '../assets/images/heart-empty.svg'
 
@@ -8,11 +9,12 @@ const props = defineProps<{
 }>()
 
 const MAX = 3
-const safe = Math.max(0, Math.min(MAX, props.health))
+const safe = computed(() => Math.max(0, Math.min(MAX, props.health)))
+
 </script>
 <template>
   <div class="health" :class="{ hurt: hurting }">
-    <img v-for="(_, i) in Array.from({ length: MAX})" :key="i" :src="i < safe ? Heart : HeartEmpty" :alt="i < safe ? `hurt-full` : `hurt-empty`"></img>
+    <img v-for="(_, i) in Array.from({ length: MAX })" :key="i" :src="i < safe ? Heart : HeartEmpty" :alt="i < safe ? `hurt-full` : `hurt-empty`"></img>
   </div>
 </template>
 
