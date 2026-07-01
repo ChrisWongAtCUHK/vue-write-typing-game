@@ -59,7 +59,9 @@ const highScore = parseInt(
       </div>
       <div class="buttons">
         <button @click="() => onRestart()" class="primary-button">RETRY</button>
-        <button @click="() => onMenu()" class="secondary-button">MENU</button>
+        <button @click="() => onMenu()" class="primary-button secondary-button">
+          MENU
+        </button>
       </div>
     </div>
   </div>
