@@ -246,9 +246,10 @@ const burstParticles = (x: number, y: number, color: string) => {
     }
   })
   const burst = { id, x, y, color, pieces }
-  particles.value = [...particles.value, burst]
+  //particles.value = [...particles.value, burst]
+
   setTimeout(() => {
-    particles.value = particles.value.filter((p) => p.id !== id)
+    //particles.value = particles.value.filter((p) => p.id !== id)
   }, 700)
 }
 
@@ -363,6 +364,7 @@ watch(
           else if (w.kind === 'normal') damageTaken += cfg.damage
           comboBroken = true
           updatedList.splice(i, 1)
+
           continue
         }
 
@@ -483,8 +485,8 @@ watch(wordsCompletedThisWave, (newCount) => {
     // Clean parameterless iteration for wave transitions
     for (let i = 0; i < cfg.initialSpawn; i++) {
       spawnOne()
-      const last = activeWords.value[activeWords.value.length - 1]
-      if (last) last.y = SPAWN_Y - i * 14
+      // const last = activeWords.value[activeWords.value.length - 1]
+      // if (last) last.y = SPAWN_Y - i * 14
     }
   }, 1800)
 })
@@ -619,7 +621,7 @@ const onKey = (e: any) => {
     if (bonusLabel) addFloating(bonusLabel, target.x, target.y - 5, 'bonus')
     const burstColor =
       target.kind === 'danger'
-        ? 'var(--danger)'
+        ? 'var(--accent)'
         : target.kind === 'slow'
           ? '#60a5fa'
           : target.kind === 'freeze'

@@ -104,7 +104,11 @@ const badgeColors = {
     >
       {{ KIND_BADGE[kind as keyof typeof KIND_BADGE] }}
     </div>
-    <div v-for="(letter, i) in word.split('')" class="letter-box" :key="i">
+    <div
+      v-for="(letter, i) in word.split('')"
+      class="letter-box"
+      :key="`${letter}-${i}`"
+    >
       <div
         class="letter"
         :style="{
