@@ -92,7 +92,7 @@ if (bombing) {
 }
 
 const getFloatingTextStyle = (x: number, y: number, variant: string) => {
-  let style = `left: ${x}%; top: ${y}%`
+  let style = `left: ${x}%; top: ${y}%;`
 
   if (variant === 'score') {
     style += 'color: var(--accent); font-size: 22px;'
